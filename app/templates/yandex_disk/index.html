@@ -17,92 +17,123 @@
     <h2>Файлы</h2>
     <ul id="fileList"></ul>
 
+    <div>
+        <button id="clearSelection" onclick="clearSelection()">Очистить выбор</button>
+        <button id="SelectAll" onclick="SelectAll()">Выбрать Все</button>
+    </div>
+    <button style="margin-top: 5px;" id="downloadSelected" onclick="downloadSelectedFiles()">Скачать выбранные файлы</button>
 
 
     <script>
+        let allFiles = [];
+
         document.getElementById('fetchForm').onsubmit = async function (event) {
             event.preventDefault();
-            fetchFiles()
+            fetchFiles();
         };
 
-
         async function fetchFiles() {
-
             const publicKey = document.getElementById('publicKey').value;
-            
             if (!publicKey) {
-            
                 alert("Введите публичную ссылку!");
                 return;
-            
             }
 
             const response = await fetch(`/list/?public_key=${publicKey}`);
             const data = await response.json();
 
             if (data._embedded) {
-            
                 allFiles = data._embedded.items;
-                filterFiles('all'); 
-            
+                filterFiles('all');
             } else {
-            
                 document.getElementById('fileList').innerHTML = '<li>Файлы не найдены</li>';
-            
             }
         }
 
-
         function filterFiles(fileType) {
-            
+           
             const fileList = document.getElementById('fileList');
             fileList.innerHTML = '';
 
-            try {
-            
-                let filteredFiles = allFiles;
-            
-                if (fileType === 'images') {
-                    filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('image'));
-            
-                } else if (fileType === 'documents') {
-                    filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('document'));
-            
-                } else if (fileType === 'videos') {
-                    filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('video'));
-                }
-                
-                if (filteredFiles.length === 0) {
-            
-                    fileList.innerHTML = '<li>Файлы не найдены</li>';
-                    return;
-                }
-                
-                filteredFiles.forEach(file => {
-            
-                    const li = document.createElement('li');
-                    li.textContent = `${file.name}  `;
-                    
-                    if (file.file) {
-            
-                        const downloadBtn = document.createElement('a');
-                        downloadBtn.href = `/download/?file_url=${encodeURIComponent(file.file)}`;
-                        downloadBtn.textContent = 'Скачать';
-                        li.appendChild(downloadBtn);
-            
-                    }
-                    
-                    fileList.appendChild(li);
-                });
-            
-            } catch {
-            
-                alert("Введите публичную ссылку!");
-            
+            let filteredFiles = allFiles;
+            if (fileType === 'images') {
+                filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('image'));
+        
+            } else if (fileType === 'documents') {
+                filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('document'));
+        
+            } else if (fileType === 'videos') {
+                filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('video'));
             }
+
+            if (filteredFiles.length === 0) {
+                fileList.innerHTML = '<li>Файлы не найдены</li>';
+                return;
+            }
+
+            filteredFiles.forEach(file => {
+
+                const li = document.createElement('li');
+
+                li.innerHTML = `
+                    <input type="checkbox" class="file-checkbox" value="${file.file}" data-name="${file.name}">
+                    ${file.name} (${file.media_type || 'Неизвестный тип'})
+
+                    <a href="/download/?file_url=${encodeURIComponent(file.file)}">Скачать</a>
+                `;
+
+                fileList.appendChild(li);
+
+            });
+        }
+
+        function downloadSelectedFiles() {
+         
+            {% comment %} Собираем выделенные файлы {% endcomment %}
+            const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'))
+                                       .map(checkbox => ({
+                                        file_url: checkbox.value,
+                                        file_name: checkbox.getAttribute('data-name')
+                                    }));
+
+            if (selectedFiles.length === 0) {
+                alert("Выберите хотя бы один файл!");
+                return;
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/download/';
+            form.style.display = 'none';
+
+            {% comment %} Создаем  инпуты с датой для отправки {% endcomment %}
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'files';
+            input.value = JSON.stringify(selectedFiles);
+            form.appendChild(input);
+
+            {% comment %} Пихаем csrf_token {% endcomment %}
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = 'csrfmiddlewaretoken';
+            csrfToken.value = '{{ csrf_token }}';
+            form.appendChild(csrfToken);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.file-checkbox').forEach(checkbox => checkbox.checked = false);
+        }
+
+        function SelectAll() {
+            document.querySelectorAll('.file-checkbox').forEach(checkbox => checkbox.checked = true);
         }
 
     </script>
+
 {% else %}
     <p>Вы не авторизованы. <a href="{% url 'login' %}">Войти</a> или <a href="{% url 'signup' %}">Зарегистрироваться</a></p>
 {% endif %}
