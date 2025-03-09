@@ -8,36 +8,100 @@
         <button type="submit">Получить файлы</button>
     </form>
 
+    <h2>Фильтр</h2>
+    <button onclick="filterFiles('all')">Все файлы</button>
+    <button onclick="filterFiles('images')">Изображения</button>
+    <button onclick="filterFiles('documents')">Документы</button>
+    <button onclick="filterFiles('videos')">Видео</button>
+
     <h2>Файлы</h2>
     <ul id="fileList"></ul>
+
+
 
     <script>
         document.getElementById('fetchForm').onsubmit = async function (event) {
             event.preventDefault();
+            fetchFiles()
+        };
+
+
+        async function fetchFiles() {
+
             const publicKey = document.getElementById('publicKey').value;
+            
+            if (!publicKey) {
+            
+                alert("Введите публичную ссылку!");
+                return;
+            
+            }
+
             const response = await fetch(`/list/?public_key=${publicKey}`);
             const data = await response.json();
 
+            if (data._embedded) {
+            
+                allFiles = data._embedded.items;
+                filterFiles('all'); 
+            
+            } else {
+            
+                document.getElementById('fileList').innerHTML = '<li>Файлы не найдены</li>';
+            
+            }
+        }
+
+
+        function filterFiles(fileType) {
+            
             const fileList = document.getElementById('fileList');
             fileList.innerHTML = '';
 
-            if (data._embedded) {
-                data._embedded.items.forEach(file => {
-                    console.log(file)
+            try {
+            
+                let filteredFiles = allFiles;
+            
+                if (fileType === 'images') {
+                    filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('image'));
+            
+                } else if (fileType === 'documents') {
+                    filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('document'));
+            
+                } else if (fileType === 'videos') {
+                    filteredFiles = allFiles.filter(file => file.media_type && file.media_type.startsWith('video'));
+                }
+                
+                if (filteredFiles.length === 0) {
+            
+                    fileList.innerHTML = '<li>Файлы не найдены</li>';
+                    return;
+                }
+                
+                filteredFiles.forEach(file => {
+            
                     const li = document.createElement('li');
                     li.textContent = `${file.name}  `;
+                    
                     if (file.file) {
+            
                         const downloadBtn = document.createElement('a');
                         downloadBtn.href = `/download/?file_url=${encodeURIComponent(file.file)}`;
                         downloadBtn.textContent = 'Скачать';
                         li.appendChild(downloadBtn);
+            
                     }
+                    
                     fileList.appendChild(li);
                 });
-            } else {
-                fileList.innerHTML = '<li>Файлы не найдены</li>';
+            
+            } catch {
+            
+                alert("Введите публичную ссылку!");
+            
             }
-        };
+        }
+
     </script>
 {% else %}
     <p>Вы не авторизованы. <a href="{% url 'login' %}">Войти</a> или <a href="{% url 'signup' %}">Зарегистрироваться</a></p>

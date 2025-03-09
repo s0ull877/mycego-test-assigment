@@ -64,7 +64,7 @@ def list_files(request):
         if response.status_code == 200:
 
             data = response.json()
-            cache.set(key=public_key, value=data, timeout=os.getenv('FOLDER_CACHE_SECONDS'))
+            cache.set(key=public_key, value=data, timeout=int(os.getenv('FOLDER_CACHE_SECONDS')))
 
             return JsonResponse(data)
 
