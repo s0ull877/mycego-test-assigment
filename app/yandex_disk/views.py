@@ -45,9 +45,10 @@ def signup(request) -> HttpResponseRedirect | HttpResponse:
 
 
 @login_required
-def list_files(request):
+def list_files(request) -> JsonResponse:
 
-    public_key = request.GET.get('public_key', '')
+    # ссылка на Pub folder
+    public_key: str = request.GET.get('public_key', '')
 
     if not public_key:
 
@@ -57,7 +58,6 @@ def list_files(request):
 
     if data := cache.get(public_key):
         
-        print('cached data return', os.getenv('REDIS_URL'))
         return JsonResponse(data)
     
     else:
@@ -77,7 +77,7 @@ def list_files(request):
 
 
 @login_required
-def download_file(request):
+def download_file(request) -> HttpResponseRedirect | JsonResponse | HttpResponse:
 
     if request.method == 'GET':
 
@@ -96,7 +96,7 @@ def download_file(request):
     elif request.method == 'POST':
 
         try:
-            files = json.loads(request.POST.get('files', '[]'))  # ✅ Получаем список словарей [{file_url, file_name}]
+            files: list[dict] = json.loads(request.POST.get('files', '[]'))  # ✅ Получаем список словарей [{file_url, file_name}]
         
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -130,3 +130,8 @@ def download_file(request):
         response['Content-Disposition'] = 'attachment; filename="selected_files.zip"'
 
         return response
+    
+
+    else:
+
+        return JsonResponse(data={'error': f'Method not allowed {request.method}'})
