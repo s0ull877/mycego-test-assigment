@@ -1,0 +1,5 @@
+SECRET_KEY=
+DEBUG=
+
+REDIS_URL=redis://ip:6379
+FOLDER_CACHE_SECONDS=Сколько в кэше будет храниться ссылка на pub folder в ya.disk
