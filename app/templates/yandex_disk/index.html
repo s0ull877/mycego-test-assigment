@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Просмотр файлов на Яндекс.Диске</h1>
+
+{% if user.is_authenticated %}
+    <form id="fetchForm">
+        <input type="text" id="publicKey" name="public_key" required>
+        <button type="submit">Получить файлы</button>
+    </form>
+
+    <h2>Файлы</h2>
+    <ul id="fileList"></ul>
+
+    <script>
+        document.getElementById('fetchForm').onsubmit = async function (event) {
+            event.preventDefault();
+            const publicKey = document.getElementById('publicKey').value;
+            const response = await fetch(`/list/?public_key=${publicKey}`);
+            const data = await response.json();
+
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+
+            if (data._embedded) {
+                data._embedded.items.forEach(file => {
+                    console.log(file)
+                    const li = document.createElement('li');
+                    li.textContent = `${file.name}  `;
+                    if (file.file) {
+                        const downloadBtn = document.createElement('a');
+                        downloadBtn.href = `/download/?file_url=${encodeURIComponent(file.file)}`;
+                        downloadBtn.textContent = 'Скачать';
+                        li.appendChild(downloadBtn);
+                    }
+                    fileList.appendChild(li);
+                });
+            } else {
+                fileList.innerHTML = '<li>Файлы не найдены</li>';
+            }
+        };
+    </script>
+{% else %}
+    <p>Вы не авторизованы. <a href="{% url 'login' %}">Войти</a> или <a href="{% url 'signup' %}">Зарегистрироваться</a></p>
+{% endif %}
+{% endblock %}
