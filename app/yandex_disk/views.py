@@ -1,12 +1,15 @@
-import urllib
+import os
 import requests
 
-
-from django.contrib.auth import login
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http.response import JsonResponse
+
 from django.shortcuts import redirect, render
+
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+
+from django.core.cache import cache
 
 from .forms import SignUpForm
 
@@ -48,16 +51,26 @@ def list_files(request):
         return JsonResponse({'error': 'Public key is required'}, status=400)
 
     params = {'public_key': public_key}
-    response = requests.get(YANDEX_DISK_API_BASE_URL, params=params)
 
-    if response.status_code == 200:
-
-        data = response.json()
+    if data := cache.get(public_key):
+        
+        print('cached data return', os.getenv('REDIS_URL'))
         return JsonResponse(data)
-
+    
     else:
 
-        return JsonResponse({'error': 'Failed to fetch files'}, status=response.status_code)
+        response = requests.get(YANDEX_DISK_API_BASE_URL, params=params)
+
+        if response.status_code == 200:
+
+            data = response.json()
+            cache.set(key=public_key, value=data, timeout=os.getenv('FOLDER_CACHE_SECONDS'))
+
+            return JsonResponse(data)
+
+        else:
+
+            return JsonResponse({'error': 'Failed to fetch files'}, status=response.status_code)
 
 
 @login_required
